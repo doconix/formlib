@@ -1,0 +1,17 @@
+ul.errorlist {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+ul.errorlist > li {
+    display: inline-block;
+    background-color: #9b5e21;
+    color: #ffffff;
+    border-radius: .25em;
+    margin: 12px 0 3px 0;
+    padding: .2em .6em .3em .6em;
+    font-size: 85%;
+    white-space: nowrap;
+    vertical-align: baseline;
+}

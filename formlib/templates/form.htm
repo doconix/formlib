@@ -1,0 +1,20 @@
+## including these directly so the form doesn't have to inherit and can be standalone
+${ django_mako_plus.link_css(self) }
+
+
+<form action="${ form.form_action or '' }" method="${ form.form_method }">
+
+    ## csrf token
+    ${ csrf_input }
+
+    ## form fields, help text, and errors
+    ${ form.as_p() }
+
+    ## submit button
+    <p class="text-center"><button type="submit" class="btn btn-primary">${ form.form_submit | h }</button></p>
+
+</form>
+
+
+## render any scripts with the form
+${ django_mako_plus.link_js(self) }
