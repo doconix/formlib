@@ -9,4 +9,4 @@ It is released under the Apache open source license as part of the IS 413 course
 
 Download the code, and place the `formlib` directory in your project root.  Then add `formlib` to your `INSTALLED_APPS`.
 
-See (`formlib/form.py`)[/doconix/formlib/blob/master/formlib/form.py] for example code.
+See (formlib/form.py)[/doconix/formlib/blob/master/formlib/form.py] for example code.
