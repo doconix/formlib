@@ -5,27 +5,27 @@
 
 from django import forms
 from django_mako_plus import view_function
-from .lib.initializer import InitializerMixIn
 from . import dmp_render_to_string
+import inspect
 
 
-class Form(InitializerMixIn, forms.Form):
+class FormMixIn(object):
     """
-    Adds some extra behaviors to the Django form class:
+    A mixin that adds to the Django form class:
 
-        - Prints the full set of <form> tags, including the
+        - as_full() prints the full set of <form> tags, including the
           csrf token (see templates/form.htm).
         - Automatically adds the POST data if method is post.
-        - Calls init(**kwargs) at the end of the __init__ process with
+        - Calls init(...) at the end of the __init__ process with
           any kwargs specified in init().
-        - Adds a commit() method to keep form action with the form
+        - Adds a commit(...) method to keep form action with the form
           code.
         - Adds the request object to the form.
 
     Template:
 
         from django_mako_plus import view_function
-        from formlib.form import Form
+        from formlib.form import FormMixIn
         from django import forms
 
         @view_function
@@ -43,7 +43,7 @@ class Form(InitializerMixIn, forms.Form):
             })
 
 
-        class MyForm(Form):
+        class MyForm(FormMixIn, forms.Form):
             '''An example form'''
             def init(self, a, b):
                 '''Initialize the form (called at end of __init__)'''
@@ -77,6 +77,9 @@ class Form(InitializerMixIn, forms.Form):
         # save the request object
         self.request = request
 
+        # strip off the init() arguments
+        init_kwargs = { k: kwargs.pop(k, None) for k in inspect.getargspec(self.init).args if k != 'self' }
+
         # default POST and FILES if method is POST and they weren't provided
         # this gets the values from args, then kwargs, then, if post method, request.POST/FILES
         newargs = [
@@ -89,6 +92,17 @@ class Form(InitializerMixIn, forms.Form):
 
         # call superclass constructors
         super().__init__(*newargs, **kwargs)
+
+        # call the init() as the last thing in the constructor
+        self.init(**init_kwargs)
+
+
+    def init(self):  # add any additional items to init()
+        '''
+        Called at the end of the constructor.
+        Subclasses should override this method to set up the class.
+        '''
+        pass
 
 
     def as_full(self):
