@@ -3,6 +3,7 @@
 #  Released under the Apache open source license
 #
 
+from django.conf import settings
 from django import forms
 from django_mako_plus import view_function
 from . import dmp_render_to_string
@@ -79,6 +80,14 @@ class FormMixIn(object):
 
         # strip off the init() arguments
         init_kwargs = { k: kwargs.pop(k, None) for k in inspect.getargspec(self.init).args if k != 'self' }
+
+        # check that the init_kwargs don't conflict with parameters of any superclass constructors
+        if settings.DEBUG:
+            mro_args = set()
+            for klass in self.__class__.__mro__:
+                mro_args.update(inspect.getargspec(klass.__init__).args)
+            conflicts = mro_args & set(init_kwargs.keys())
+            assert len(conflicts) == 0, '{}.init() arguments "{}" have the same name as __init__ arguments in its inheritance mro.  Please use another argument name.'.format(self.__class__.__qualname__, ', '.join(conflicts))
 
         # default POST and FILES if method is POST and they weren't provided
         # this gets the values from args, then kwargs, then, if post method, request.POST/FILES
