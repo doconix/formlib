@@ -68,13 +68,19 @@ class FormMixIn(object):
         ${ form }
 
     """
-    form_action = None
+    form_id = None                      # set in __init__ below
+    form_action = None                  # None means form submits to the current page
     form_method = 'POST'
     form_submit = 'Submit'
-    field_css = [ 'form-control' ]
+    form_classes = [ 'formlib-form' ]     # list of default classes for the form: <form>
+    field_classes = [ 'form-control' ]      # list of default classes for the fields: <input>, <select>, ...
 
     def __init__(self, request, *args, **kwargs):
         '''Constructor'''
+        # set the id of this form to the name of the subclass
+        if not self.form_id:
+            self.form_id = 'formlib-{}'.format(self.__class__.__qualname__.lower())
+
         # save the request object
         self.request = request
 
@@ -117,7 +123,7 @@ class FormMixIn(object):
     def as_full(self):
         '''Returns the HTML for this form, including <form>, submit, and csrf tags.'''
         # add the bootstrap css
-        css = set(self.field_css)
+        css = set(self.field_classes)
         for field in self.fields.values():
             current = set(( c.strip() for c in field.widget.attrs.get('class', '').split(' ') if c ))
             field.widget.attrs['class'] = ' '.join(css | current)

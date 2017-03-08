@@ -1,7 +1,7 @@
 ## including these directly so the form doesn't have to inherit and can be standalone
 ${ django_mako_plus.link_css(self) }
 
-<form action="${ form.form_action or '' }" method="${ form.form_method }">
+<form id="${ form.form_id }" class="${ ' '.join(form.form_classes) }" action="${ form.form_action or '' }" method="${ form.form_method }">
 
     ## csrf token
     ${ csrf_input }
