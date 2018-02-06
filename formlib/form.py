@@ -1,135 +1,109 @@
 #  Written by Conan Albrecht
-#  Version: 0.1.3
+#  Version: 0.1.4
 #  Released under the Apache open source license
 #
 
 from django.conf import settings
 from django import forms
-from django_mako_plus import view_function
-from . import dmp_render_to_string
+from django_mako_plus import view_function, render_template
+from inspect import Signature
 import inspect
 
 
-class FormMixIn(object):
+formsig = Signature.from_callable(forms.Form.__init__)
+
+
+class Formless(forms.Form):
     """
-    A mixin that adds to the Django form class:
+    A mixin that prints a full form (instead of just the fields).
 
-        - as_full() prints the full set of <form> tags, including the
-          csrf token (see templates/form.htm).
-        - Automatically adds the POST data if method is post.
-        - Calls init(...) at the end of the __init__ process with
-          any kwargs specified in init().
-        - Adds a commit(...) method to keep form action with the form
-          code.
-        - Adds the request object to the form.
+    In your view.py file:
 
-    Template:
-
+        from django.http import HttpResponseRedirect
         from django_mako_plus import view_function
-        from formlib.form import FormMixIn
+        from formlib import Formless
         from django import forms
 
         @view_function
         def process_request(request):
 
             # process the form
-            form = MyForm(request, a=1, b=2)
+            form = MyForm(request)
             if form.is_valid():
                 d = form.commit(c=3)
                 return HttpResponseRedirect('/app/successurl/')
 
             # render the template
-            return dmp_render(request, 'contact.html', {
+            return request.dmp_render('mytemplate.html', {
                 'form': form,
             })
 
 
-        class MyForm(FormMixIn, forms.Form):
+        class MyForm(formlib.Form):   # extending formlib.Form, not Django's forms.Form
             '''An example form'''
-            def init(self, a, b):
-                '''Initialize the form (called at end of __init__)'''
-                # do something with variables "a" and "b"
-                print(a)
-                print(b)
-                # add fields here
+            def init(self):
+                '''Adds the fields for this form (called at end of __init__)'''
                 self.fields['name'] = forms.CharField()
+
+            def clean_name(self):
+                name = self.cleaned_data.get('name')
+                # ...
+                return name
 
             def commit(self, c):
                 '''Process the form action'''
                 # do something with c (optional)
-                print(c)
+                print('>>>>', c)
                 # act on the form
-                print('Name is', self.cleaned_data['name'])
+                print('>>>> Name is', self.cleaned_data['name'])
                 # return any data (optional)
                 return 4
 
-    On your template:
+    In your template.html file:
 
         ${ form }
 
     """
-    form_id = None                      # set in __init__ below
-    form_action = None                  # None means form submits to the current page
+    form_id = 'form'
+    form_action = None
     form_method = 'POST'
-    form_submit = 'Submit'
-    form_classes = [ 'formlib-form' ]     # list of default classes for the form: <form>
-    field_classes = [ 'form-control' ]      # list of default classes for the fields: <input>, <select>, ...
+    submit_text = 'Submit'
+    field_css = [ 'form-control' ]
 
     def __init__(self, request, *args, **kwargs):
         '''Constructor'''
-        # set the id of this form to the name of the subclass
-        if not self.form_id:
-            self.form_id = 'formlib-{}'.format(self.__class__.__qualname__.lower())
-
         # save the request object
         self.request = request
 
-        # strip off the init() arguments
-        init_kwargs = { k: kwargs.pop(k, None) for k in inspect.getargspec(self.init).args if k != 'self' }
-
-        # check that the init_kwargs don't conflict with parameters of any superclass constructors
-        if settings.DEBUG:
-            mro_args = set()
-            for klass in self.__class__.__mro__:
-                mro_args.update(inspect.getargspec(klass.__init__).args)
-            conflicts = mro_args & set(init_kwargs.keys())
-            assert len(conflicts) == 0, '{}.init() arguments "{}" have the same name as __init__ arguments in its inheritance mro.  Please use another argument name.'.format(self.__class__.__qualname__, ', '.join(conflicts))
-
-        # default POST and FILES if method is POST and they weren't provided
-        # this gets the values from args, then kwargs, then, if post method, request.POST/FILES
-        newargs = [
-            args[0] if len(args) > 0 else kwargs.pop('data') if 'data' in kwargs else request.POST if request.method == 'POST' else None,
-            args[1] if len(args) > 1 else kwargs.pop('files') if 'files' in kwargs else request.FILES if request.method == 'POST' else None,
-        ]
-        # add any additional args
-        if len(args) > 2:
-            newargs.extend(args[2:])
-
-        # call superclass constructors
-        super().__init__(*newargs, **kwargs)
+        # create the arguments for the super call, adding `data` and `files` if needed
+        # then call the superclass (calling old-fashioned way because self is in the args)
+        super_args = formsig.bind(self, *args, **kwargs)
+        if request.method == 'POST':
+            super_args.arguments['data'] = super_args.arguments.get('data', request.POST)
+            super_args.arguments['files'] = super_args.arguments.get('files', request.FILES)
+        super_args.apply_defaults()
+        forms.Form.__init__(*super_args.args, **super_args.kwargs)
 
         # call the init() as the last thing in the constructor
-        self.init(**init_kwargs)
+        # this gives the subclass a hook without having to override __init__ and call super()
+        self.init()
 
 
-    def init(self):  # add any additional items to init()
-        '''
-        Called at the end of the constructor.
-        Subclasses should override this method to set up the class.
-        '''
+    def init(self):
+        '''Hook for subclasses to add fields and any other initialization.'''
         pass
 
 
     def as_full(self):
         '''Returns the HTML for this form, including <form>, submit, and csrf tags.'''
         # add the bootstrap css
-        css = set(self.field_classes)
+        css = set(self.field_css)
         for field in self.fields.values():
             current = set(( c.strip() for c in field.widget.attrs.get('class', '').split(' ') if c ))
             field.widget.attrs['class'] = ' '.join(css | current)
 
         # render the string
-        return dmp_render_to_string(self.request, 'form.htm', { 'form': self })
+        return render_template(self.request, 'formlib', 'form.htm', { 'form': self })
 
 
     def __str__(self):
