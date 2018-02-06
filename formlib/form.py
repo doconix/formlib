@@ -1,5 +1,4 @@
 #  Written by Conan Albrecht
-#  Version: 0.1.4
 #  Released under the Apache open source license
 #
 
