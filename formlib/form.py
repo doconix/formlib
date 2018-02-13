@@ -1,4 +1,5 @@
 #  Written by Conan Albrecht
+#  Version: 0.1.5
 #  Released under the Apache open source license
 #
 
@@ -24,12 +25,12 @@ class Formless(forms.Form):
         from django import forms
 
         @view_function
-        def process_request(request):
+        def process_request(request, user:amod.User=None):
 
             # process the form
-            form = MyForm(request)
+            form = MyForm(request, user=user)
             if form.is_valid():
-                d = form.commit(c=3)
+                form.commit()
                 return HttpResponseRedirect('/app/successurl/')
 
             # render the template
@@ -42,6 +43,8 @@ class Formless(forms.Form):
             '''An example form'''
             def init(self):
                 '''Adds the fields for this form (called at end of __init__)'''
+                # note that self.user is available (see MyForm constructor call above)
+                self.initial = { 'name': self.user.first_name' }
                 self.fields['name'] = forms.CharField()
 
             def clean_name(self):
@@ -49,14 +52,11 @@ class Formless(forms.Form):
                 # ...
                 return name
 
-            def commit(self, c):
+            def commit(self):
                 '''Process the form action'''
-                # do something with c (optional)
-                print('>>>>', c)
-                # act on the form
-                print('>>>> Name is', self.cleaned_data['name'])
-                # return any data (optional)
-                return 4
+                # self.user still available
+                self.user.first_name = self.cleaned_data.get('name')
+                self.user.save()
 
     In your template.html file:
 
@@ -73,6 +73,11 @@ class Formless(forms.Form):
         '''Constructor'''
         # save the request object
         self.request = request
+
+        # any extra kwargs should be set on this object
+        for name in tuple(kwargs.keys()):
+            if name not in formsig.parameters:
+                setattr(self, name, kwargs.pop(name))
 
         # create the arguments for the super call, adding `data` and `files` if needed
         # then call the superclass (calling old-fashioned way because self is in the args)
