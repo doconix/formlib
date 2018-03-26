@@ -34,7 +34,7 @@ class Formless(forms.Form):
                 return HttpResponseRedirect('/app/successurl/')
 
             # render the template
-            return request.dmp_render('mytemplate.html', {
+            return request.dmp.render('mytemplate.html', {
                 'form': form,
             })
 
@@ -98,7 +98,7 @@ class Formless(forms.Form):
         pass
 
 
-    def as_full(self):
+    def as_full(self, extra=None):
         '''Returns the HTML for this form, including <form>, submit, and csrf tags.'''
         # add the bootstrap css
         css = set(self.field_css)
@@ -107,7 +107,10 @@ class Formless(forms.Form):
             field.widget.attrs['class'] = ' '.join(css | current)
 
         # render the string
-        return render_template(self.request, 'formlib', 'form.htm', { 'form': self })
+        return render_template(self.request, 'formlib', 'form.htm', {
+            'form': self,
+            'extra': extra,
+        })
 
 
     def __str__(self):
@@ -120,5 +123,3 @@ class Formless(forms.Form):
         Commits the form after it has been validated.
         '''
         pass
-
-

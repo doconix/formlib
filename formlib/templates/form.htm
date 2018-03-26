@@ -11,8 +11,15 @@ ${ django_mako_plus.links(self) }
         ## form fields, help text, and errors
         ${ form.as_p() }
 
+        ## any extra
+        %if extra:
+            ${ extra }
+        %endif
+
         ## submit button
-        <p class="text-center"><button type="submit" class="btn btn-primary">${ form.submit_text | h }</button></p>
+        %if form.submit_text is not None:
+            <p class="text-center"><button type="submit" class="btn btn-primary">${ form.submit_text | h }</button></p>
+        %endif
 
     </form>
 </div>
